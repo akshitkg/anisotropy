@@ -9,10 +9,11 @@ from matplotlib.patches import Ellipse
 file_path = 'Linement_Intersection_SRTM.xlsx'
 data = pd.read_excel(file_path)
 
+
 # Assuming your latitude and longitude columns are named 'Latitude' and 'Longitude'
 latitude = data['Lat']
 longitude = data['Long']
-
+# print(latitude,longitude)
 # Step 3: Convert latitude and longitude to pixel coordinates (similar to the previous method)
 # Choose an appropriate scale factor to convert degrees to pixels, adjust it based on your data
 scale_factor = 100
