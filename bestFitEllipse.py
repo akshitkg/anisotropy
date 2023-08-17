@@ -4,7 +4,7 @@ import numpy as np
 from scipy.optimize import curve_fit
 
 # Replace 'your_file.xlsx' with the actual path to your Excel file
-file_path = 'Linement_Intersection_SRTM.xlsx'
+file_path = 'data.xlsx'
 data = pd.read_excel(file_path)
 
 # Assuming your latitude and longitude columns are named 'Latitude' and 'Longitude'
