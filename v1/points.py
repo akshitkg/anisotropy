@@ -6,10 +6,10 @@ import cv2
 import matplotlib.pyplot as plt
 
 def generatePoints():
-    radius = 5
-    rangeX = (0, 512)
-    rangeY = (0, 512)
-    qty = 150  # or however many points you want
+    radius = 0
+    rangeX = (0, 1052)
+    rangeY = (0, 744)
+    qty = 1957  # or however many points you want
 
     # Generate a set of all points within 200 of the origin, to be used as offsets later
     # There's probably a more efficient way to do this.
@@ -70,17 +70,17 @@ def polar_coordinates(mean, rpts):
 
     return new_cartesians,new_polars
 
-def drawLine(img_path,mean, new_coords):
-    img=Image.open(img_path)
-    draw=ImageDraw.Draw(img)
-    m_x,m_y=mean
-    for coord in new_coords:
-        x1,y1=coord
-        x,y=x1+m_x,y1+m_y
-        coordinate=(x,y)
-        # print(m_x,m_y,x,y)
-        draw.line([m_x,m_y,x,y],fill='red',width=0)
-    img.save("./points.png")
+# def drawLine(img_path,mean, new_coords):
+#     img=Image.open(img_path)
+#     draw=ImageDraw.Draw(img)
+#     m_x,m_y=mean
+#     for coord in new_coords:
+#         x1,y1=coord
+#         x,y=x1+m_x,y1+m_y
+#         coordinate=(x,y)
+#         # print(m_x,m_y,x,y)
+#         draw.line([m_x,m_y,x,y],fill='red',width=0)
+#     img.save("./points.png")
 
 def draw_point_with_width(draw, rpts, width, color):
     # draw = ImageDraw.Draw(image)
@@ -135,7 +135,7 @@ def best_fit_ellipse(pts):
 
 
 
-gen_img=Image.new('RGB',(512,512),(255,255,255))
+gen_img=Image.new('RGB',(1052,744),(255,255,255))
 
 draw=ImageDraw.Draw(gen_img)
 rpts=generatePoints()
@@ -149,7 +149,7 @@ new_cartesians,new_polars=polar_coordinates(mean, rpts)
 
 gen_img.save('gen_pts.png')
 # print(new_cartesians)
-drawLine('gen_pts.png',mean,new_cartesians)
+# drawLine('gen_pts.png',mean,new_cartesians)
 print(new_cartesians)
 print(new_polars)
 
@@ -175,11 +175,11 @@ print(new_polars)
 x=[item[0] for item in new_polars]
 y=[item[1] for item in new_polars]
 
-plt.scatter(x,y)
-plt.xlabel("r")
-plt.ylabel("theta")
-plt.title("r vs theta")
-plt.grid(True)
-plt.savefig("r_vs_theta.png")
+# plt.scatter(x,y)
+# plt.xlabel("r")
+# plt.ylabel("theta")
+# plt.title("r vs theta")
+# plt.grid(True)
+# plt.savefig("r_vs_theta.png")
 
-best_fit_ellipse(new_polars)
+# best_fit_ellipse(new_polars)
