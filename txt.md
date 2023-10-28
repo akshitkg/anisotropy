@@ -12,3 +12,13 @@
 Steps for K-function
 1. generate a random point distribution image of the same dimension and number of points as the provided svg image
 2. 
+
+
+Objective:
+To implement complete analysis of point data using Ripley K-function
+
+- Ripley K-function 
+
+some innacuracy in reading number of points
+distribution plotting
+
