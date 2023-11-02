@@ -7,7 +7,7 @@ def extract_coordinates_from_image(image_path):
 
     if binary_image is None:
         print("Error: Unable to read the image.")
-        return
+        return 
 
     # Threshold the image to obtain a binary image
     _, binary_image = cv2.threshold(binary_image, 128, 255, cv2.THRESH_BINARY)
@@ -20,13 +20,13 @@ def extract_coordinates_from_image(image_path):
         for x in range(cols):
             if binary_image[y, x] == 255:
                 point_coordinates.append((x, y))
-    # print(len(point_coordinates))
+        # print(point_coordinates)
 
     return point_coordinates
 
 # Example usage
-# image_path = "b.png"
-# point_coordinates = extract_coordinates_from_image(image_path)
+image_path = "random_points_image.png"
+point_coordinates = extract_coordinates_from_image(image_path)
 
 # Print the coordinates
 # print("Coordinates of the random points:")
@@ -34,4 +34,4 @@ def extract_coordinates_from_image(image_path):
 # for coord in point_coordinates:
 #     coordinates.append(coord)
 
-# print(point_coordinates)
+print(point_coordinates)

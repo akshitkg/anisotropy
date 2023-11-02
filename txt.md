@@ -22,3 +22,9 @@ To implement complete analysis of point data using Ripley K-function
 some innacuracy in reading number of points
 distribution plotting
 
+
+
+
+for omnidirectional K-function:
+given: coordinates
+- 
