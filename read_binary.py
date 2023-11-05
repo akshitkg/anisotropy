@@ -25,13 +25,9 @@ def extract_coordinates_from_image(image_path):
     return point_coordinates
 
 # Example usage
-image_path = "random_points_image.png"
-point_coordinates = extract_coordinates_from_image(image_path)
+# image_path = "random_sample.png"
+# point_coordinates = extract_coordinates_from_image(image_path)
 
-# Print the coordinates
-# print("Coordinates of the random points:")
-# coordinates=[]
-# for coord in point_coordinates:
-#     coordinates.append(coord)
 
-print(point_coordinates)
+
+# print(point_coordinates)

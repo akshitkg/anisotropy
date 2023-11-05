@@ -28,3 +28,7 @@ distribution plotting
 for omnidirectional K-function:
 given: coordinates
 - 
+
+
+I have points in an image, i want to implement K-function on it to check the distribution pattern of the points
+

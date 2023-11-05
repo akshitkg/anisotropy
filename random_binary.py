@@ -21,5 +21,5 @@ cv2.waitKey(0)
 cv2.destroyAllWindows()
 
 # Save the image to a file (optionalco)
-cv2.imwrite("random_points_image.png", binary_image)
+cv2.imwrite("random_sample.png", binary_image)
 print(len(coordinates))
