@@ -32,3 +32,6 @@ given: coordinates
 
 I have points in an image, i want to implement K-function on it to check the distribution pattern of the points
 
+objectives:
+1. anisotropic curve from sample data
+2. 
