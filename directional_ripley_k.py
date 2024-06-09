@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.spatial import cKDTree
+from scipy.spatial import KDTree
 from read_binary import extract_coordinates_from_image
 
 # Define the function for Directional Ripley's K
@@ -15,7 +15,7 @@ def directional_ripley_k(data, radii, azimuth_direction, tolerance_angle):
     azimuth_vector = np.array([np.cos(azimuth_rad), np.sin(azimuth_rad)])
     azimuth_vector_180plus = np.array([np.cos(azimuth_rad_180plus), np.sin(azimuth_rad_180plus)])
     print(azimuth_direction, azimuth_rad, azimuth_rad_180plus)
-    
+
     # Calculate the sector boundaries
     angle_tolerance = np.deg2rad(tolerance_angle)
     sector_start = azimuth_rad - angle_tolerance
@@ -24,7 +24,7 @@ def directional_ripley_k(data, radii, azimuth_direction, tolerance_angle):
     sector_end_180plus = azimuth_rad_180plus + angle_tolerance
     
     # Create a k-d tree for fast nearest-neighbor search
-    kdtree = cKDTree(data)
+    kdtree = KDTree(data)
     
     for i in range(n):
         point = data[i]
@@ -83,6 +83,7 @@ np.random.seed(42)
 n_points = 500
 data = extract_coordinates_from_image("random_sample.png")
 print(len(data))
+
 # Define the radii at which to compute K
 radii = np.linspace(0, 0.5, 50)
 

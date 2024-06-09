@@ -24,6 +24,7 @@ def extract_coordinates_from_image(image_path):
 
     return point_coordinates
 
+# print("hello")
 # Example usage
 # image_path = "random_sample.png"
 # point_coordinates = extract_coordinates_from_image(image_path)

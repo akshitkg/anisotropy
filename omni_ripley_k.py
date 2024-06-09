@@ -40,7 +40,7 @@ _, binary_image = cv2.threshold(gray, 128, 255, cv2.THRESH_BINARY)
 
 # Find contours to extract point coordinates
 contours, _ = cv2.findContours(binary_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-points = []
+points  = []
 for contour in contours:
     for point in contour:
         x, y = point[0]
