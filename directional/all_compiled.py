@@ -234,3 +234,5 @@ plt.ylabel('K(h)')
 plt.legend()
 plt.savefig("directional_result.png")
 plt.show()
+
+print("finished executing the file")
