@@ -1,159 +1,238 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.spatial import KDTree
-from read_binary import extract_coordinates_from_image
+from PIL import Image
 
-# Define the function for Directional Ripley's K
-def directional_ripley_k(data, radii, azimuth_direction, tolerance_angle):
-    n = len(data)
-    print("1", n)
-    k_values = np.zeros(len(radii))
+def extract_white_pixels(image_path):
+    """
+    Extract coordinates of white pixels from a binary image.
     
-    # Calculate the unit vector corresponding to the azimuth direction
-    azimuth_rad = np.deg2rad(azimuth_direction)
-    azimuth_rad_180plus = np.deg2rad(azimuth_direction+180)
-    azimuth_vector = np.array([np.cos(azimuth_rad), np.sin(azimuth_rad)])
-    azimuth_vector_180plus = np.array([np.cos(azimuth_rad_180plus), np.sin(azimuth_rad_180plus)])
-    print(azimuth_direction, azimuth_rad, azimuth_rad_180plus)
+    Parameters:
+    image_path (str): Path to the input image file.
+    
+    Returns:
+    points (np.ndarray): Array of coordinates of white pixels.
+    """
+    image = Image.open(image_path).convert('L')  # Convert to grayscale
+    binary_image = np.array(image) > 128  # Convert to binary (white pixels)
+    y_indices, x_indices = np.where(binary_image)
+    points = np.column_stack((x_indices, y_indices))
+    return points
 
-    # Calculate the sector boundaries
-    angle_tolerance = np.deg2rad(tolerance_angle)
-    sector_start = azimuth_rad - angle_tolerance
-    sector_end = azimuth_rad + angle_tolerance
-    sector_start_180plus=azimuth_rad_180plus-angle_tolerance
-    sector_end_180plus = azimuth_rad_180plus + angle_tolerance
+def sector_area(radius, angle):
+    """
+    Calculate the area of a sector.
     
-    # Create a k-d tree for fast nearest-neighbor search
-    kdtree = KDTree(data)
+    Parameters:
+    radius (float): Radius of the sector.
+    angle (float): Angle of the sector in radians.
     
-    for i in range(n):
-        point = data[i]
-        print(point)
-        
-        # Find points within the specified radius
-        indices = kdtree.query_ball_point(point, radii[-1])
-        print(indices)
-        
-        # Count points in the sector
-        sector_count = 0
-        for j in indices:
-            dx, dy = data[j][0] - point[0], data[j][1] - point[1]
-            # dx,dy=[point[0],data[j][0]],[point[1],data[j][1]]
-            if dx!=0:
-                tan_theta=dy/dx
-                print("tan_theta ",tan_theta)
+    Returns:
+    float: Area of the sector.
+    """
+    return 0.5 * radius ** 2 * angle
+
+def boundary_intersection(x, y, radius, angle, width, height):
+    """
+    Find intersection points of the sector's radius with the study area boundaries.
+    
+    Parameters:
+    x, y (float): Center of the sector.
+    radius (float): Radius of the sector.
+    angle (float): Angle of the sector in radians.
+    width, height (float): Dimensions of the study area.
+    
+    Returns:
+    list of tuples: Intersection points with the boundaries.
+    """
+    intersections = []
+    # Right boundary (x = width)
+    if angle >= 0 and angle <= np.pi:
+        if x + radius * np.cos(angle) > width:
+            y_int = y + (width - x) * np.tan(angle)
+            if 0 <= y_int <= height:
+                intersections.append((width, y_int))
+    
+    # Left boundary (x = 0)
+    if angle >= np.pi or angle <= 0:
+        if x - radius * np.cos(angle) < 0:
+            y_int = y - x * np.tan(angle)
+            if 0 <= y_int <= height:
+                intersections.append((0, y_int))
+    
+    # Top boundary (y = 0)
+    if angle <= 0.5 * np.pi or angle >= 1.5 * np.pi:
+        if y - radius * np.sin(angle) < 0:
+            x_int = x - y / np.tan(angle)
+            if 0 <= x_int <= width:
+                intersections.append((x_int, 0))
+    
+    # Bottom boundary (y = height)
+    if angle >= 0.5 * np.pi and angle <= 1.5 * np.pi:
+        if y + radius * np.sin(angle) > height:
+            x_int = x + (height - y) / np.tan(angle)
+            if 0 <= x_int <= width:
+                intersections.append((x_int, height))
+    
+    return intersections
+
+def intersection_area(x, y, radius, angle_start, angle_end, width, height):
+    """
+    Calculate the area of the sector that intersects with the study area boundaries.
+    
+    Parameters:
+    x, y (float): Center of the sector.
+    radius (float): Radius of the sector.
+    angle_start, angle_end (float): Start and end angles of the sector in radians.
+    width, height (float): Dimensions of the study area.
+    
+    Returns:
+    float: Area of the sector that intersects with the study area boundaries.
+    """
+    def integrate_area(r, theta1, theta2):
+        """
+        Integrate the area of a circular segment.
+        """
+        return 0.5 * r ** 2 * (theta2 - theta1) - 0.5 * r ** 2 * (np.sin(theta2 - theta1))
+    
+    total_intersection_area = 0.0
+    
+    for angle in np.linspace(angle_start, angle_end, 100):
+        intersections = boundary_intersection(x, y, radius, angle, width, height)
+        for intersection in intersections:
+            x_int, y_int = intersection
+            theta1 = np.arctan2(y_int - y, x_int - x)
+            if theta1 < 0:
+                theta1 += 2 * np.pi
+            theta2 = theta1 + 0.01  # Small increment to approximate the segment
+            segment_area = integrate_area(radius, theta1, theta2)
+            total_intersection_area += segment_area
+    
+    return total_intersection_area
+
+def edge_correction(point, h, study_area, azimuth, tolerance):
+    """
+    Calculate edge correction weight for a point within a directional search window.
+    
+    Parameters:
+    point (tuple): Coordinates of the point (x, y).
+    h (float): Radius of the search window.
+    study_area (tuple): Dimensions of the study area (width, height).
+    azimuth (float): Azimuth angle in degrees.
+    tolerance (float): Tolerance angle in degrees.
+    
+    Returns:
+    float: Edge correction weight.
+    """
+    x, y = point
+    width, height = study_area
+    
+    # Convert angles to radians
+    azimuth_rad = np.radians(azimuth)
+    tolerance_rad = np.radians(tolerance)
+    
+    # Total area of two sectors
+    total_sector_angle = 2 * tolerance_rad
+    total_area = 2 * sector_area(h, total_sector_angle)
+    
+    # Calculate the areas of the two sectors inside the study area
+    sector1_area_inside = sector_area(h, total_sector_angle) - intersection_area(
+        x, y, h, azimuth_rad - tolerance_rad, azimuth_rad + tolerance_rad, width, height)
+    sector2_area_inside = sector_area(h, total_sector_angle) - intersection_area(
+        x, y, h, azimuth_rad + np.pi - tolerance_rad, azimuth_rad + np.pi + tolerance_rad, width, height)
+    
+    area_inside = sector1_area_inside + sector2_area_inside
+    
+    # Edge correction weight
+    edge_correction_weight = total_area / area_inside if area_inside > 0 else 0
+    
+    return edge_correction_weight
+
+def directional_weight(theta_ij, azimuth, delta_theta):
+    """
+    Weight function for directional K-function.
+    """
+    return 1 if azimuth - delta_theta <= theta_ij < azimuth + delta_theta else 0
+
+def directional_k_function(points, study_area, h_values, azimuth, delta_theta, num_simulations=100):
+    """
+    Compute the directional Ripley K-function with edge correction and generate confidence intervals.
+    
+    Parameters:
+    points (np.ndarray): Array of point coordinates.
+    study_area (tuple): Dimensions of the study area (width, height).
+    h_values (np.ndarray): Array of distance values at which to compute the K-function.
+    azimuth (float): Azimuth angle of interest.
+    delta_theta (float): Azimuth tolerance.
+    num_simulations (int): Number of Monte Carlo simulations for confidence intervals.
+    
+    Returns:
+    k_values (np.ndarray): Computed K-function values.
+    conf_intervals (np.ndarray): Confidence intervals for the K-function.
+    """
+    n_points = len(points)
+    area = study_area[0] * study_area[1]
+    intensity = n_points / area
+    
+    k_values = np.zeros_like(h_values)
+    
+    for i in range(n_points):
+        for j in range(n_points):
+            if i != j:
+                d_ij = np.linalg.norm(points[i] - points[j])
+                theta_ij = float(np.degrees(np.arctan2(points[j, 1] - points[i, 1], points[j, 0] - points[i, 0])))
+                print(type(theta_ij), theta_ij)
+                if theta_ij < 0:
+                    theta_ij += 360
                 
-            else:
-                tan_theta=0    
-            angle = np.arctan(tan_theta)
-            print("tan_theta: ",dx,dy)
-            print()
-            if (sector_start <= angle <= sector_end):
-                sector_count += 1
+                for k, h in enumerate(h_values):
+                    if d_ij <= h:
+                        w = edge_correction(points[i], h, study_area, azimuth, delta_theta)
+                        k_values[k] += directional_weight(theta_ij, azimuth, delta_theta) * w
+    
+    k_values /= (intensity * n_points)
+    
+    # Monte Carlo simulations for confidence intervals
+    simulated_k_values = np.zeros((num_simulations, len(h_values)))
+    for sim in range(num_simulations):
+        simulated_points = np.column_stack((np.random.uniform(0, study_area[0], n_points), 
+                                            np.random.uniform(0, study_area[1], n_points)))
+        for i in range(n_points):
+            for j in range(n_points):
+                if i != j:
+                    d_ij = np.linalg.norm(simulated_points[i] - simulated_points[j])
+                    theta_ij = float(np.degrees(np.arctan2(simulated_points[j, 1] - simulated_points[i], simulated_points[j, 0] - simulated_points[i]))[0])
+                    print(type(theta_ij), theta_ij)
+                    if theta_ij < 0:
+                        theta_ij += 360
+                    
+                    for k, h in enumerate(h_values):
+                        if d_ij <= h:
+                            w = edge_correction(simulated_points[i], h, study_area, azimuth, delta_theta)
+                            simulated_k_values[sim, k] += directional_weight(theta_ij, azimuth, delta_theta) * w
         
-
-        for r_idx, r in enumerate(radii):
-            sector_count = 0
-            for j in indices:
-                dx, dy = data[j][0] - point[0], data[j][1] - point[1]
-                angle = np.arctan2(dy, dx)
-                 # Debug print statements
-                print(f"Point: {data[j]}, Angle: {np.degrees(angle)}")
-                if (sector_start <= angle <= sector_end):
-                    sector_count += 1
-                if (sector_start_180plus<=angle<=sector_end_180plus):
-                    sector_count+=1
-            
-            k_values[r_idx] += sector_count
-            
-            print(f"Radius {r}: {sector_count} points in sector")
-
-        # After the loop
-        print("Final K values:", k_values)  
-
+        simulated_k_values[sim] /= (intensity * n_points)
     
-    # Apply edge correction
-    for r_idx, r in enumerate(radii):  # Fixed the iteration here
-        k_values[r_idx] /= (n * n)  # Normalize by the total number of points
+    conf_intervals = np.percentile(simulated_k_values, [2.5, 97.5], axis=0)
     
-    return k_values
+    return k_values, conf_intervals
 
-# Sample data (replace with your actual point coordinates)
-np.random.seed(42)
-n_points = 500
-data = extract_coordinates_from_image("random_sample.png")
-print(len(data))
+# Example usage
+image_path = 'random_sample.png'  # Replace with the path to your image file
+points = extract_white_pixels(image_path)
+study_area = (points[:, 0].max() + 1, points[:, 1].max() + 1)
+h_values = np.linspace(1, 50, 50)
+azimuth = 45
+delta_theta = 15
+num_simulations = 100
 
-# Define the radii at which to compute K
-radii = np.linspace(0, 0.5, 50)
+k_values, conf_intervals = directional_k_function(points, study_area, h_values, azimuth, delta_theta, num_simulations)
 
-# Specify the azimuth direction (in degrees) and tolerance angle (in degrees)
-azimuth_direction = 45  # For example, 45 degrees
-tolerance_angle = 15  # For example, 15 degrees
+plt.plot(h_values, k_values, label='Directional K-function')
+plt.fill_between(h_values, conf_intervals[0], conf_intervals[1], color='gray', alpha=0.5, label='95% Confidence Interval')
+plt.xlabel('Distance (h)')
+plt.ylabel('K(h)')
+plt.legend()
+plt.savefig("directional_result.png")
+plt.show()
 
-# Define the boundary of the study area (adjust as needed)
-# boundary = [0, 1, 0, 1]
-
-# Compute Directional Ripley's K values
-directional_ripley_k(data, radii, azimuth_direction, tolerance_angle)
-
-# Calculate 95% confidence intervals (example based on normal approximation)
-# num_simulations = 10  # Number of Monte Carlo simulations
-# conf_intervals = []
-
-# for r in radii:
-#     sim_values = []
-
-#     for _ in range(num_simulations):
-#         # Generate random points within the boundary
-#         random_points = np.random.rand(n_points, 2)
-        
-#         # Calculate the Directional Ripley's K for the random points
-#         sim_k_values = directional_ripley_k(random_points, [r], azimuth_direction, tolerance_angle, boundary)
-        
-#         sim_values.append(sim_k_values[0])
-    
-#     # Calculate the mean and standard deviation of the simulated K values
-#     mean_sim = np.mean(sim_values)
-#     std_sim = np.std(sim_values, ddof=1)
-    
-#     # Calculate the 95% confidence interval using the normal approximation
-#     alpha = 0.05
-#     z = 1.96  # For a 95% confidence interval
-#     conf_interval = (mean_sim - z * std_sim / np.sqrt(num_simulations), mean_sim + z * std_sim / np.sqrt(num_simulations))
-#     conf_intervals.append(conf_interval)
-
-# Plot the results with confidence intervals
-# print(k_values)
-# plt.plot(radii, k_values, label="Observed K")
-
-# # for r_idx, r in enumerate(radii):
-#     # plt.fill_between([r],  alpha=0.3)
-
-# plt.xlabel("Radius (r)")
-# plt.ylabel("Directional Ripley's K Value")
-# plt.title("Directional Ripley's K Function with Confidence Intervals")
-# plt.legend()
-# plt.show()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+print("finished executing the file")
